@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Predicting Search Traffic Decay and Prioritizing Content Refreshes</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            line-height: 1.6;
+            color: #24292e;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 40px 20px;
+            background-color: #f6f8fa;
+        }
+        .container {
+            background: #ffffff;
+            padding: 40px;
+            border-radius: 6px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+        h1 { font-size: 2.2em; border-bottom: 1px solid #eaecef; padding-bottom: 10px; margin-top: 0; }
+        h2 { font-size: 1.5em; border-bottom: 1px solid #eaecef; padding-bottom: 6px; margin-top: 40px; }
+        h3 { font-size: 1.2em; margin-top: 25px; }
+        p, li { font-size: 1.05em; color: #333; }
+        .abstract {
+            background: #f1f8ff;
+            border-left: 4px solid #0366d6;
+            padding: 15px 20px;
+            margin: 20px 0;
+            border-radius: 0 4px 4px 0;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+        }
+        th, td {
+            border: 1px solid #dfe2e5;
+            padding: 10px 14px;
+            text-align: left;
+        }
+        th { background-color: #f6f8fa; }
+        code { background: rgba(27,31,35,0.05); padding: 2px 6px; border-radius: 3px; font-family: monospace; font-size: 0.95em; }
+        .footer {
+            margin-top: 50px;
+            border-top: 1px solid #eaecef;
+            padding-top: 20px;
+            font-size: 0.9em;
+            color: #586069;
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+
+    <h1>Predicting Search Traffic Decay and Prioritizing Content Refreshes</h1>
+    <p><strong>Author:</strong> Abdul Basit Khan | University of Engineering and Technology (UET), Taxila</p>
+
+    <div class="abstract">
+        <h3>Abstract</h3>
+        <p>Content teams managing tens of thousands of published pages face an operational bottleneck in identifying decaying URLs that require editorial intervention. This research investigates whether machine learning models can outperform hand-written heuristics in prioritizing content refresh queues. Using pre-decision historical signals including impression volume, average search position, and content age, we trained a Random Forest classifier under a strict client-holdout split to prevent domain leakage. The trained model achieved a <strong>Precision@50 of 0.740</strong>, representing a roughly 3x improvement over a manual baseline rule (0.240 Precision@50). The resulting pipeline translates probabilistic scores into an automated operational review queue featuring explicit reason codes to direct limited editorial capacity strictly to high-leverage assets.</p>
+    </div>
+
+    <h2>1. Introduction & Problem Statement</h2>
+    <p>In large-scale web publishing, organic search traffic inevitably decays over time due to shifting search intent, increased competition, or stale content. Manually auditing thousands of URLs is unfeasible, and simple heuristic rules (such as sorting purely by traffic drop) frequently target pages that cannot be revived. This work supports an automated decision-support system designed to rank decaying pages and assign explicit action labels (`FULL_REFRESH`, `PRIORITY_UPDATE`, `METADATA_CHECK`), maximizing editorial ROI.</p>
+
+    <h2>2. Data Contract & Public-Safe Scope</h2>
+    <p>The analysis is built upon the anonymized FlyRank ML dataset comprising 30,000 published content rows across multiple client domains. To maintain strict scientific integrity and avoid data leakage:</p>
+    <ul>
+        <li>Future-window target metrics (`trend_direction`, `trend_pct`) were strictly excluded from feature inputs.</li>
+        <li>Features are limited to pre-decision historical observations: 90-day impressions (`impressions_90d`), average SERP position (`avg_position`), content age in days (`content_age_days`), click-through rate (`ctr`), and word count (`word_count`).</li>
+    </ul>
+
+    <h2>3. Methodology & Validation Design</h2>
+    <p>We evaluated two competing approaches:</p>
+    <ul>
+        <li><strong>Heuristic Baseline (Week 4):</strong> A composite scoring formula weighting 95th-percentile clipped impressions (45%), content age (35%), and striking-position opportunity for ranks 4 through 15 (20%).</li>
+        <li><strong>Machine Learning Model (Week 5):</strong> A Random Forest Classifier trained to predict traffic decline probability. To prevent the model from memorizing domain-specific structural traits, we enforced a strict group-shuffle split grouped by `client_id` (80/20 train/test split).</li>
+    </ul>
+
+    <h2>4. Results: Model vs. Baseline Performance</h2>
+    <p>Both systems were evaluated on the exact same unseen client-holdout test split using <strong>Precision@50</strong>—measuring how many of the top 50 recommended review targets were genuinely declining.</p>
+    <table>
+        <thead>
+            <tr>
+                <th>Approach</th>
+                <th>Precision@50</th>
+                <th>Correct Refreshes (out of 50)</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td>Week 4 Heuristic Baseline</td>
+                <td>0.240</td>
+                <td>~12 / 50</td>
+            </tr>
+            <tr>
+                <td><strong>Random Forest Model (ML-08)</strong></td>
+                <td><strong>0.740</strong></td>
+                <td><strong>~37 / 50</strong></td>
+            </tr>
+        </tbody>
+    </table>
+
+    <h2>5. Limitations & Honest Framing</h2>
+    <p>All findings and model outputs are framed strictly as <em>observed, measured, directional, and decision-support</em> instruments rather than causal guarantees of search engine ranking shifts. Error analysis indicates that the model's false positives in top tiers are occasionally clustered around evergreen, high-impression navigational assets that maintain high age but stable traffic.</p>
+
+    <h2>6. Ranked Recommendations Playbook</h2>
+    <p>The deployed scoring engine generates an automated operational queue categorized by action labels:</p>
+    <ul>
+        <li><strong>FULL_REFRESH (`STALE_STRIKING_DISTANCE`):</strong> High-traffic pages ranking in striking distance (positions 4–15) that have aged beyond 180 days. Primary targets for comprehensive content expansion and factual updates.</li>
+        <li><strong>PRIORITY_UPDATE (`HIGH_VISIBILITY_AT_RISK`):</strong> High-volume assets experiencing sudden engagement drops requiring immediate visibility defense.</li>
+    </ul>
+
+    <h2>7. Reproducibility & Repository Links</h2>
+    <p>Complete source code, data preprocessing pipelines, and trained model notebooks are publicly maintained in the GitHub repository:</p>
+    <p><a href="https://github.com/ABK998/flyrank-ML" target="_blank">GitHub Repository: ABK998/flyrank-ML</a></p>
+    <ul>
+        <li>Baseline Notebook: <code>work/notebooks/w04_baseline_score.ipynb</code></li>
+        <li>Model Notebook: <code>work/notebooks/w05_model.ipynb</code></li>
+    </ul>
+
+    <div class="footer">
+        <p><strong>Acknowledgments & Data Credit:</strong> Built on the FlyRank ML Internship dataset. Learn more at <a href="https://flyrank.ai" target="_blank">flyrank.ai</a>.</p>
+    </div>
+
+</div>
+</body>
+</html>
